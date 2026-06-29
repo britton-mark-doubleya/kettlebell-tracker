@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Heavy / Light Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:#111;font-family:-apple-system,'Inter','Helvetica Neue',sans-serif;}
+  button{font-family:inherit;}
+  ::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ─── SNATCH / SQUAT SEQUENCE (Aggressive) ───────────────────────────────────
+// Volume: sets 10→20, reps = 5L+5R per set (EMOM, 1 set/min)
+// Density: sets 16→10, reps/side 6→10 (never exceeds 10/side)
+// WC = bell × sets × (rL+rR)
+const SNATCH_SEQ = [
+  // 12kg — volume (5/side)
+  {bell:12,sets:10,rL:5, rR:5, wc:1200,phase:"vol"},{bell:12,sets:11,rL:5, rR:5, wc:1320,phase:"vol"},
+  {bell:12,sets:12,rL:5, rR:5, wc:1440,phase:"vol"},{bell:12,sets:13,rL:5, rR:5, wc:1560,phase:"vol"},
+  {bell:12,sets:14,rL:5, rR:5, wc:1680,phase:"vol"},{bell:12,sets:15,rL:5, rR:5, wc:1800,phase:"vol"},
+  {bell:12,sets:16,rL:5, rR:5, wc:1920,phase:"vol"},{bell:12,sets:17,rL:5, rR:5, wc:2040,phase:"vol"},
+  {bell:12,sets:18,rL:5, rR:5, wc:2160,phase:"vol"},{bell:12,sets:19,rL:5, rR:5, wc:2280,phase:"vol"},
+  {bell:12,sets:20,rL:5, rR:5, wc:2400,phase:"vol"},
+  // 12kg — density (reps/side 6→10, sets 16→10)
+  {bell:12,sets:16,rL:6, rR:6, wc:2304,phase:"den"},{bell:12,sets:14,rL:7, rR:7, wc:2352,phase:"den"},
+  {bell:12,sets:12,rL:8, rR:8, wc:2304,phase:"den"},{bell:12,sets:11,rL:9, rR:9, wc:2376,phase:"den"},
+  {bell:12,sets:10,rL:10,rR:10,wc:2400,phase:"den"},
+  // 16kg — volume (5/side)
+  {bell:16,sets:10,rL:5, rR:5, wc:1600,phase:"vol"},{bell:16,sets:11,rL:5, rR:5, wc:1760,phase:"vol"},
+  {bell:16,sets:12,rL:5, rR:5, wc:1920,phase:"vol"},{bell:16,sets:13,rL:5, rR:5, wc:2080,phase:"vol"},
+  {bell:16,sets:14,rL:5, rR:5, wc:2240,phase:"vol"},{bell:16,sets:15,rL:5, rR:5, wc:2400,phase:"vol"},
+  {bell:16,sets:16,rL:5, rR:5, wc:2560,phase:"vol"},{bell:16,sets:17,rL:5, rR:5, wc:2720,phase:"vol"},
+  {bell:16,sets:18,rL:5, rR:5, wc:2880,phase:"vol"},{bell:16,sets:19,rL:5, rR:5, wc:3040,phase:"vol"},
+  {bell:16,sets:20,rL:5, rR:5, wc:3200,phase:"vol"},
+  // 16kg — density
+  {bell:16,sets:16,rL:6, rR:6, wc:3072,phase:"den"},{bell:16,sets:14,rL:7, rR:7, wc:3136,phase:"den"},
+  {bell:16,sets:12,rL:8, rR:8, wc:3072,phase:"den"},{bell:16,sets:11,rL:9, rR:9, wc:3168,phase:"den"},
+  {bell:16,sets:10,rL:10,rR:10,wc:3200,phase:"den"},
+  // 20kg — volume (5/side)
+  {bell:20,sets:10,rL:5, rR:5, wc:2000,phase:"vol"},{bell:20,sets:11,rL:5, rR:5, wc:2200,phase:"vol"},
+  {bell:20,sets:12,rL:5, rR:5, wc:2400,phase:"vol"},{bell:20,sets:13,rL:5, rR:5, wc:2600,phase:"vol"},
+  {bell:20,sets:14,rL:5, rR:5, wc:2800,phase:"vol"},{bell:20,sets:15,rL:5, rR:5, wc:3000,phase:"vol"},
+  {bell:20,sets:16,rL:5, rR:5, wc:3200,phase:"vol"},{bell:20,sets:17,rL:5, rR:5, wc:3400,phase:"vol"},
+  {bell:20,sets:18,rL:5, rR:5, wc:3600,phase:"vol"},{bell:20,sets:19,rL:5, rR:5, wc:3800,phase:"vol"},
+  {bell:20,sets:20,rL:5, rR:5, wc:4000,phase:"vol"},
+  // 20kg — density
+  {bell:20,sets:16,rL:6, rR:6, wc:3840,phase:"den"},{bell:20,sets:14,rL:7, rR:7, wc:3920,phase:"den"},
+  {bell:20,sets:12,rL:8, rR:8, wc:3840,phase:"den"},{bell:20,sets:11,rL:9, rR:9, wc:3960,phase:"den"},
+  {bell:20,sets:10,rL:10,rR:10,wc:4000,phase:"den"},
+];
+
+// ─── SQUAT SEQUENCE — identical structure to Snatch ─────────────────────────
+const SQUAT_SEQ = SNATCH_SEQ;
+
+// ─── C&P SEQUENCE (Moderate) — starting from next after last completed ───────
+// Last completed: 20kg 5×321. Next = #1 in file.
+const CP_SEQ = [
+  {bell:12,sets:3,ladder:"321",  wc:432 },{bell:12,sets:4,ladder:"321",  wc:576 },
+  {bell:12,sets:5,ladder:"321",  wc:720 },{bell:16,sets:3,ladder:"321",  wc:576 },
+  {bell:12,sets:2,ladder:"4321", wc:480 },{bell:16,sets:4,ladder:"321",  wc:768 },
+  {bell:12,sets:3,ladder:"4321", wc:720 },{bell:16,sets:5,ladder:"321",  wc:960 },
+  {bell:20,sets:3,ladder:"321",  wc:720 },{bell:12,sets:4,ladder:"4321", wc:960 },
+  {bell:16,sets:2,ladder:"4321", wc:640 },{bell:20,sets:4,ladder:"321",  wc:960 },
+  {bell:12,sets:5,ladder:"4321", wc:1200},{bell:16,sets:3,ladder:"4321", wc:960 },
+  {bell:20,sets:5,ladder:"321",  wc:1200},{bell:12,sets:2,ladder:"54321",wc:720 },
+  {bell:16,sets:4,ladder:"4321", wc:1280},{bell:20,sets:2,ladder:"4321", wc:800 },
+  {bell:12,sets:3,ladder:"54321",wc:1080},{bell:16,sets:5,ladder:"4321", wc:1600},
+  {bell:20,sets:3,ladder:"4321", wc:1200},{bell:12,sets:4,ladder:"54321",wc:1440},
+  {bell:16,sets:2,ladder:"54321",wc:960 },{bell:20,sets:4,ladder:"4321", wc:1600},
+  {bell:12,sets:5,ladder:"54321",wc:1800},{bell:16,sets:3,ladder:"54321",wc:1440},
+  {bell:20,sets:5,ladder:"4321", wc:2000},{bell:16,sets:4,ladder:"54321",wc:1920},
+  {bell:20,sets:2,ladder:"54321",wc:1200},{bell:16,sets:5,ladder:"54321",wc:2400},
+  {bell:20,sets:3,ladder:"54321",wc:1800},{bell:20,sets:4,ladder:"54321",wc:2400},
+  {bell:20,sets:5,ladder:"54321",wc:3000},
+];
+
+// ─── TGU SEQUENCE ─────────────────────────────────────────────────────────────
+function buildTguSeq(){
+  const seq=[];
+  for(const bell of [12,16,20])
+    for(let sets=1;sets<=3;sets++)
+      for(let mins=3;mins<=10;mins++)
+        seq.push({bell,sets,mins,label:`${sets}×${mins}min`});
+  return seq;
+}
+const TGU_SEQ = buildTguSeq();
+
+// ─── STARTING INDICES ─────────────────────────────────────────────────────────
+// Snatch: user at 12kg 10×10 = index 0 of SNATCH_SEQ (this IS the next step)
+// Squat:  same position
+// C&P:    index 0 of CP_SEQ (12kg 3×321, next after last completed)
+// TGU:    next after 1×10min at 12kg = 2×3min at 12kg
+const SNATCH_START = 15; // at 12kg density end (10×10L+10R) — 16kg starts week 2
+const SQUAT_START  = 15; // same position as snatch
+const CP_START     = 15; // next after completed 20kg 5×321 (index 14)
+const TGU_START    = TGU_SEQ.findIndex(s=>s.bell===16&&s.sets===1&&s.mins===7); // next after 16kg 1×6min
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function clamp(arr,i){ return arr[Math.min(Math.max(i,0),arr.length-1)]; }
+
+// Get effective index into a sequence, accounting for skipped steps
+function effectiveIdx(baseStart, weekOffset, skipped, seq) {
+  let count = 0;
+  for (let i = baseStart; i < seq.length; i++) {
+    if (!skipped.includes(i)) {
+      if (count === weekOffset) return i;
+      count++;
+    }
+  }
+  return seq.length - 1;
+}
+
+function getWeekPrescription(weekOffset, skips) {
+  const siSnatch = effectiveIdx(SNATCH_START, weekOffset, skips.snatch || [], SNATCH_SEQ);
+  const siSquat  = effectiveIdx(SQUAT_START,  weekOffset, skips.squat  || [], SQUAT_SEQ);
+  const siCp     = effectiveIdx(CP_START,     weekOffset, skips.cp     || [], CP_SEQ);
+  const siTgu    = effectiveIdx(TGU_START,    weekOffset, skips.tgu    || [], TGU_SEQ);
+
+  const snatH  = SNATCH_SEQ[siSnatch];
+  const squatH = SQUAT_SEQ[siSquat];
+  const cpH    = CP_SEQ[siCp];
+  const tguH   = TGU_SEQ[siTgu];
+
+  // Light = one effective step behind heavy
+  const siSnatL  = effectiveIdx(SNATCH_START, Math.max(0, weekOffset-1), skips.snatch||[], SNATCH_SEQ);
+  const siSquatL = effectiveIdx(SQUAT_START,  Math.max(0, weekOffset-1), skips.squat ||[], SQUAT_SEQ);
+  const snatL  = SNATCH_SEQ[siSnatL];
+  const squatL = SQUAT_SEQ[siSquatL];
+
+  const tguLBell = tguH.bell > 12 ? tguH.bell - 4 : 12;
+  const tguLSets = Math.max(1, Math.round(tguH.sets * 0.55));
+  const tguLMins = Math.max(3, Math.round(tguH.mins * 0.55));
+  const tguL = { bell:tguLBell, sets:tguLSets, mins:tguLMins, label:`${tguLSets}×${tguLMins}min` };
+
+  const cpL = { bell:cpH.bell, sets:Math.max(1,Math.ceil(cpH.sets/2)), ladder:cpH.ladder };
+
+  return {
+    days: [
+      { id:1, dayName:"Mon", label:"Day 1", rest:false, slots:[
+        { skill:"Snatch", weight:"HEAVY", data:snatH, seqIdx:siSnatch, seqKey:"snatch", note:"EMOM · per side" },
+        { skill:"TGU",    weight:"LIGHT", data:tguL,  seqIdx:siTgu,   seqKey:"tgu",    note:"Time under tension" },
+      ]},
+      { id:2, dayName:"Tue", label:"Day 2", rest:false, slots:[
+        { skill:"Squat", weight:"LIGHT", data:squatL, seqIdx:siSquatL, seqKey:"squat", note:"60s rest · per side" },
+        { skill:"C&P",   weight:"HEAVY", data:cpH,    seqIdx:siCp,     seqKey:"cp",    note:"Reverse ladder · L then R" },
+      ]},
+      { id:3, dayName:"Wed", label:"Day 3", rest:true },
+      { id:4, dayName:"Thu", label:"Day 4", rest:false, slots:[
+        { skill:"Snatch", weight:"LIGHT", data:snatL, seqIdx:siSnatL, seqKey:"snatch", note:"EMOM · per side" },
+        { skill:"TGU",    weight:"HEAVY", data:tguH,  seqIdx:siTgu,   seqKey:"tgu",    note:"Time under tension" },
+      ]},
+      { id:5, dayName:"Fri", label:"Day 5", rest:false, slots:[
+        { skill:"Squat", weight:"HEAVY", data:squatH, seqIdx:siSquat, seqKey:"squat", note:"60s rest · per side" },
+        { skill:"C&P",   weight:"LIGHT", data:cpL,    seqIdx:siCp,    seqKey:"cp",    note:"Reverse ladder · L then R" },
+      ]},
+      { id:6, dayName:"Sat", label:"Day 6", rest:true },
+      { id:7, dayName:"Sun", label:"Day 7", rest:true },
+    ],
+    indices: { snatch:siSnatch, squat:siSquat, cp:siCp, tgu:siTgu }
+  };
+}
+
+function fmtPx(skill, data) {
+  if (!data) return "—";
+  if (skill==="TGU")  return `${data.bell}kg · ${data.label}`;
+  if (skill==="C&P")  return `${data.bell}kg · ${data.sets}×${data.ladder} L+R`;
+  if (skill==="Snatch"||skill==="Squat") {
+    const phase = data.phase==="den" ? " density" : " volume";
+    return `${data.bell}kg · ${data.sets} sets × ${data.rL}L+${data.rR}R  (WC ${data.wc})`;
+  }
+  return "—";
+}
+
+// ─── INTENSITY (WC/min) ──────────────────────────────────────────────────────
+// Returns { wcPerMin, durationMin } for a given skill + data object
+function calcIntensity(skill, data) {
+  if (!data) return null;
+
+  if (skill === "Snatch" || skill === "Squat") {
+    // Snatch EMOM: 1 set per minute → duration = sets minutes
+    // Squat: set duration ≈ (rL+rR)*3s work + 60s rest = (rL*2*3 + 60)s per set
+    if (skill === "Snatch") {
+      const durationMin = data.sets; // 1 set per minute
+      const wc = data.bell * data.sets * (data.rL + data.rR);
+      return { wcPerMin: Math.round(wc / durationMin), durationMin };
+    } else {
+      const setDurS = (data.rL + data.rR) * 3 + 60; // ~3s/rep + 60s rest
+      const durationMin = (data.sets * setDurS) / 60;
+      const wc = data.bell * data.sets * (data.rL + data.rR);
+      return { wcPerMin: Math.round(wc / durationMin), durationMin: Math.round(durationMin) };
+    }
+  }
+
+  if (skill === "C&P") {
+    // Ladder reps: 321=6, 4321=10, 54321=15 reps per side per set
+    const ladderReps = { "321":6, "4321":10, "54321":15 };
+    const repsPerSet = (ladderReps[data.ladder] || 6) * 2; // both sides
+    const workS = repsPerSet * 3; // ~3s per rep
+    const restS = 90; // rest between sets
+    const durationMin = (data.sets * workS + data.sets * restS) / 60;
+    const wc = data.bell * data.sets * (ladderReps[data.ladder] || 6);
+    return { wcPerMin: Math.round(wc / durationMin), durationMin: Math.round(durationMin) };
+  }
+
+  if (skill === "TGU") {
+    // TGU: WC = bell × sets × mins, duration = sets × mins
+    const durationMin = data.sets * data.mins;
+    const wc = data.bell * data.sets * data.mins;
+    return { wcPerMin: Math.round(wc / durationMin), durationMin };
+  }
+
+  return null;
+}
+
+// Intensity bar colour: low=blue, mid=amber, high=red
+function intensityColor(wcPerMin, skill) {
+  // Normalise against rough skill maxima
+  const maxima = { Snatch:400, Squat:130, "C&P":90, TGU:20 };
+  const max = maxima[skill] || 400;
+  const pct = Math.min(wcPerMin / max, 1);
+  if (pct < 0.4) return "#6b8fa3";  // cool blue — low
+  if (pct < 0.7) return "#c9a84c";  // amber — moderate
+  return "#a85c4a";                  // red — high
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+const SK = "kb4-v1";
+const INIT = { currentWeek:1, completions:{}, skips:{ snatch:[], squat:[], cp:[], tgu:[] } };
+function load(){ try{ const r=localStorage.getItem(SK); return r?{...INIT,...JSON.parse(r)}:INIT; }catch{return INIT;} }
+function save(s){ try{ localStorage.setItem(SK,JSON.stringify(s)); }catch{} }
+
+// ─── COLOURS ─────────────────────────────────────────────────────────────────
+const C = {
+  bg:"#111", surface:"#1c1c1c", border:"#252525",
+  heavy:"#c9a84c", light:"#6b8fa3", done:"#4a8a4a",
+  text:"#f0ede8", muted:"#6b7280", skip:"#a05a2c",
+};
+
+// ─── COMPONENTS ──────────────────────────────────────────────────────────────
+function Tag({label,isHeavy}){
+  const color=isHeavy?C.heavy:C.light;
+  return <span style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color,border:`1px solid ${color}55`,borderRadius:3,padding:"1px 5px",fontFamily:"monospace"}}>{label}</span>;
+}
+
+function SkipBtn({ seqKey, seqIdx, skips, onSkip, isLight }) {
+  if (isLight) return null; // only skip heavy slots
+  const isSkipped = (skips[seqKey]||[]).includes(seqIdx);
+  return (
+    <button
+      onClick={e=>{ e.stopPropagation(); onSkip(seqKey, seqIdx); }}
+      title={isSkipped ? "Un-skip this step" : "Skip this step — use next instead"}
+      style={{
+        fontSize:9, padding:"2px 7px", borderRadius:4,
+        border:`1px solid ${isSkipped?"#4a8a4a":C.skip+"88"}`,
+        background: isSkipped?"#1a2a1a":"transparent",
+        color: isSkipped?C.done:C.skip,
+        cursor:"pointer", letterSpacing:"0.05em", flexShrink:0,
+        transition:"all 0.15s",
+      }}
+    >{isSkipped ? "✓ unskip" : "skip →"}</button>
+  );
+}
+
+function SlotRow({skill, slot, skips, onSkip}){
+  const isHeavy = slot.weight==="HEAVY";
+  const isSkipped = isHeavy && (skips[slot.seqKey]||[]).includes(slot.seqIdx);
+  const intensity = calcIntensity(skill, slot.data);
+  const iColor = intensity ? intensityColor(intensity.wcPerMin, skill) : C.muted;
+  return (
+    <div style={{borderTop:`1px solid ${C.border}`,paddingTop:9,marginTop:9}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,flexWrap:"wrap"}}>
+        <span style={{fontSize:12,fontWeight:700,color:isSkipped?"#555":C.text,textDecoration:isSkipped?"line-through":"none"}}>{skill}</span>
+        <Tag label={slot.weight} isHeavy={isHeavy}/>
+        <SkipBtn seqKey={slot.seqKey} seqIdx={slot.seqIdx} skips={skips} onSkip={onSkip} isLight={!isHeavy}/>
+      </div>
+      {isSkipped && (
+        <div style={{fontSize:10,color:C.skip,marginBottom:3}}>⏭ Skipped — next step used instead</div>
+      )}
+      <div style={{fontSize:12,color:isSkipped?"#555":C.text,fontFamily:"monospace",marginBottom:4}}>{fmtPx(skill,slot.data)}</div>
+      {intensity && !isSkipped && (
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+          <div style={{flex:1,height:2,background:"#222",borderRadius:1,overflow:"hidden"}}>
+            <div style={{
+              height:"100%",
+              width:`${Math.min((intensity.wcPerMin / {Snatch:400,Squat:130,"C&P":90,TGU:20}[skill])*100,100)}%`,
+              background:iColor, borderRadius:1, transition:"width 0.3s"
+            }}/>
+          </div>
+          <span style={{fontSize:9,color:iColor,fontFamily:"monospace",whiteSpace:"nowrap",flexShrink:0}}>
+            {intensity.wcPerMin} WC/min · ~{intensity.durationMin}min
+          </span>
+        </div>
+      )}
+      <div style={{fontSize:10,color:C.muted}}>{slot.note}</div>
+    </div>
+  );
+}
+
+function DayCard({day, done, onToggle, skips, onSkip}){
+  if(day.rest) return (
+    <div style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 16px",background:"#161616",display:"flex",alignItems:"center",gap:12}}>
+      <span style={{fontSize:11,color:"#333",fontFamily:"monospace",minWidth:28}}>{day.dayName}</span>
+      <span style={{fontSize:10,color:"#252525",textTransform:"uppercase",letterSpacing:"0.1em"}}>Rest</span>
+    </div>
+  );
+  return (
+    <div onClick={()=>onToggle(day.id)} style={{border:`1px solid ${done?"#2d4a2d":C.border}`,borderRadius:8,padding:"14px 16px",background:done?"#192619":C.surface,cursor:"pointer",position:"relative",overflow:"hidden",transition:"background 0.2s"}}>
+      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:done?C.done:C.border,borderRadius:"8px 0 0 8px"}}/>
+      <div style={{paddingLeft:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:9}}>
+            <span style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{day.dayName}</span>
+            <span style={{fontSize:12,fontWeight:700,color:C.text}}>{day.label}</span>
+          </div>
+          <div style={{width:22,height:22,borderRadius:"50%",border:`2px solid ${done?C.done:"#333"}`,background:done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {done&&<span style={{color:"#fff",fontSize:11}}>✓</span>}
+          </div>
+        </div>
+        {day.slots.map((slot,i)=>(
+          <SlotRow key={i} skill={slot.skill} slot={slot} skips={skips} onSkip={onSkip}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WaveBar({week,total}){
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Wave — Week {week} of {total}</div>
+      <div style={{display:"flex",gap:2,alignItems:"flex-end",height:24}}>
+        {Array.from({length:total},(_,i)=>{
+          const w=i+1,h=w===week?24:w<week?14:10;
+          return <div key={w} style={{flex:1,height:h,borderRadius:2,background:w===week?C.heavy:w<week?"#2d3a2d":"#1e1e1e",border:w===week?`1px solid ${C.heavy}`:"1px solid transparent",transition:"all 0.3s"}}/>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({title,color,rows,note}){
+  return (
+    <div style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"14px 16px",background:C.surface,borderLeft:`3px solid ${color}`}}>
+      <div style={{fontSize:9,color,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:10,fontWeight:700}}>{title}</div>
+      {rows.map(([l,v])=>(
+        <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+          <span style={{fontSize:11,color:C.muted}}>{l}</span>
+          <span style={{fontSize:11,color:C.text,fontFamily:"monospace",textAlign:"right",maxWidth:"58%"}}>{v}</span>
+        </div>
+      ))}
+      {note&&<div style={{marginTop:8,fontSize:10,color:C.muted,lineHeight:1.7}}>{note}</div>}
+    </div>
+  );
+}
+
+// ─── CHART ────────────────────────────────────────────────────────────────────
+function buildChartData(total, skips){
+  return Array.from({length:total},(_,i)=>{
+    const off=i;
+    const siS  = effectiveIdx(SNATCH_START, off, skips.snatch||[], SNATCH_SEQ);
+    const siSq = effectiveIdx(SQUAT_START,  off, skips.squat ||[], SQUAT_SEQ);
+    const siCp = effectiveIdx(CP_START,     off, skips.cp    ||[], CP_SEQ);
+    const siT  = effectiveIdx(TGU_START,    off, skips.tgu   ||[], TGU_SEQ);
+    const sH=SNATCH_SEQ[siS], sqH=SQUAT_SEQ[siSq], cpH=CP_SEQ[siCp], tH=TGU_SEQ[siT];
+    return {
+      week:i+1, snatch:sH.wc, squat:sqH.wc, cp:cpH.wc, tgu:tH.sets*tH.mins*tH.bell,
+      snatLabel:`${sH.bell}kg ${sH.sets}×${sH.rL}L+${sH.rL}R (${sH.phase})`,
+      squatLabel:`${sqH.bell}kg ${sqH.sets}×${sqH.rL}L+${sqH.rL}R (${sqH.phase})`,
+      cpLabel:`${cpH.bell}kg ${cpH.sets}×${cpH.ladder}`,
+      tguLabel:`${tH.bell}kg ${tH.label}`,
+    };
+  });
+}
+
+function SVGChart({data,series,currentWeek}){
+  const [tip,setTip]=useState(null);
+  const W=440,H=170,P={t:14,r:14,b:30,l:46};
+  const iW=W-P.l-P.r,iH=H-P.t-P.b;
+  const allV=series.flatMap(s=>data.map(d=>d[s.key]));
+  const maxV=Math.max(...allV)*1.06;
+  const xS=i=>(i/(data.length-1))*iW;
+  const yS=v=>iH-((v/maxV)*iH);
+  const fmt=v=>v>=1000?`${(v/1000).toFixed(1)}k`:`${v}`;
+  const cwX=P.l+xS(currentWeek-1);
+  return (
+    <div style={{position:"relative"}}>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",touchAction:"none"}}
+        onMouseLeave={()=>setTip(null)}>
+        {Array.from({length:5},(_,i)=>{
+          const v=(maxV/4)*i;
+          return <g key={i}>
+            <line x1={P.l} x2={P.l+iW} y1={P.t+yS(v)} y2={P.t+yS(v)} stroke="#1e1e1e" strokeWidth="1"/>
+            <text x={P.l-4} y={P.t+yS(v)+4} textAnchor="end" fontSize="9" fill="#4b5563">{fmt(v)}</text>
+          </g>;
+        })}
+        {data.filter((_,i)=>i===0||i%10===9||i===data.length-1).map(d=>(
+          <text key={d.week} x={P.l+xS(d.week-1)} y={H-8} textAnchor="middle" fontSize="9" fill="#4b5563">W{d.week}</text>
+        ))}
+        <line x1={cwX} x2={cwX} y1={P.t} y2={P.t+iH} stroke="#c9a84c" strokeWidth="1.5" strokeDasharray="3,3" opacity="0.8"/>
+        <text x={cwX+3} y={P.t+10} fontSize="8" fill="#c9a84c">W{currentWeek}</text>
+        {series.map(s=>{
+          const pts=data.map((d,i)=>`${P.l+xS(i)},${P.t+yS(d[s.key])}`).join(" ");
+          return <polyline key={s.key} points={pts} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.9"/>;
+        })}
+        {data.map((d,i)=>(
+          <rect key={i} x={P.l+xS(i)-iW/data.length/2} y={P.t} width={iW/data.length} height={iH}
+            fill="transparent"
+            onMouseEnter={()=>setTip(d)}
+            onTouchStart={e=>{e.preventDefault();setTip(d);}}
+            onTouchEnd={()=>setTimeout(()=>setTip(null),2500)}/>
+        ))}
+        {tip&&series.map(s=>(
+          <circle key={s.key} cx={P.l+xS(tip.week-1)} cy={P.t+yS(tip[s.key])} r="3.5" fill={s.color} stroke="#111" strokeWidth="1.5"/>
+        ))}
+      </svg>
+      {tip&&(
+        <div style={{position:"absolute",top:8,right:4,background:"#1a1a1a",border:"1px solid #333",borderRadius:7,padding:"8px 10px",minWidth:148,pointerEvents:"none",zIndex:10}}>
+          <div style={{fontSize:10,color:C.heavy,fontWeight:700,marginBottom:5}}>Week {tip.week}</div>
+          {series.map(s=>(
+            <div key={s.key} style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:3}}>
+              <span style={{fontSize:10,color:s.color}}>{s.label}</span>
+              <span style={{fontSize:10,color:C.text,fontFamily:"monospace"}}>{fmt(tip[s.key])}</span>
+            </div>
+          ))}
+          <div style={{borderTop:"1px solid #252525",marginTop:5,paddingTop:5}}>
+            {series.map(s=><div key={s.key+"d"} style={{fontSize:9,color:"#4b5563",marginBottom:1}}>{s.label}: {tip[s.detailKey]}</div>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WCCharts({currentWeek,total,skips}){
+  const ALL=[
+    {key:"snatch",detailKey:"snatLabel", label:"Snatch",color:"#c9a84c"},
+    {key:"squat", detailKey:"squatLabel",label:"Squat", color:"#6b8fa3"},
+    {key:"cp",    detailKey:"cpLabel",   label:"C&P",   color:"#a06fa8"},
+    {key:"tgu",   detailKey:"tguLabel",  label:"TGU*",  color:"#4a8a6a"},
+  ];
+  const [active,setActive]=useState(["snatch","squat","cp","tgu"]);
+  const data=buildChartData(total,skips);
+  const vis=ALL.filter(s=>active.includes(s.key));
+  const toggle=k=>setActive(p=>p.includes(k)?p.filter(x=>x!==k):[...p,k]);
+  const fmt=v=>v>=1000?`${(v/1000).toFixed(1)}k`:`${v}`;
+  return (
+    <div>
+      <div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12}}>Work Capacity Progression</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+        {ALL.map(s=>{
+          const on=active.includes(s.key);
+          return <button key={s.key} onClick={()=>toggle(s.key)} style={{padding:"5px 12px",fontSize:10,borderRadius:20,border:`1px solid ${on?s.color:"#333"}`,background:on?s.color+"22":"transparent",color:on?s.color:"#4b5563",cursor:"pointer",fontWeight:on?700:400}}>{s.label}</button>;
+        })}
+      </div>
+      <div style={{background:"#161616",border:"1px solid #222",borderRadius:8,padding:"12px 6px 4px",marginBottom:12}}>
+        {vis.length>0
+          ?<SVGChart data={data} series={vis} currentWeek={currentWeek}/>
+          :<div style={{height:170,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#333"}}>Select a skill above</div>
+        }
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {ALL.map(s=>{
+          const cur=data[currentWeek-1];
+          const peak=data[data.length-1];
+          const pct=Math.round((cur[s.key]/peak[s.key])*100);
+          return (
+            <div key={s.key} style={{background:C.surface,border:"1px solid #252525",borderLeft:`3px solid ${s.color}`,borderRadius:8,padding:"10px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+                <span style={{fontSize:11,fontWeight:700,color:s.color}}>{s.label}</span>
+                <span style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{fmt(cur[s.key])} → {fmt(peak[s.key])}</span>
+              </div>
+              <div style={{height:3,background:"#222",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:s.color,borderRadius:2}}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                <span style={{fontSize:9,color:"#4b5563"}}>Wk {currentWeek}: {cur[s.detailKey]}</span>
+                <span style={{fontSize:9,color:"#4b5563"}}>{pct}% of peak</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:12,fontSize:9,color:"#374151",lineHeight:1.6}}>* TGU WC = bell × sets × mins (volume proxy). Tap chart to inspect a week.</div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function App(){
+  const [st,setSt]=useState(INIT);
+  const [tab,setTab]=useState("week");
+
+  useEffect(()=>{ setSt(load()); },[]);
+  useEffect(()=>{ save(st); },[st]);
+
+  const {currentWeek,completions,skips}=st;
+  const TOTAL=48;
+
+  const {days,indices} = getWeekPrescription(currentWeek-1, skips);
+  const trainingDays=days.filter(d=>!d.rest);
+  const wk=`w${currentWeek}`;
+  const isDone=id=>completions[`${wk}-${id}`]||false;
+  const toggle=id=>setSt(p=>({...p,completions:{...p.completions,[`${wk}-${id}`]:!p.completions[`${wk}-${id}`]}}));
+  const goWeek=n=>setSt(p=>({...p,currentWeek:Math.max(1,Math.min(TOTAL,n))}));
+
+  const handleSkip = (seqKey, seqIdx) => {
+    setSt(p => {
+      const cur = p.skips[seqKey] || [];
+      const next = cur.includes(seqIdx)
+        ? cur.filter(x => x !== seqIdx)   // un-skip
+        : [...cur, seqIdx];                // skip
+      return { ...p, skips: { ...p.skips, [seqKey]: next } };
+    });
+  };
+
+  const doneCount=trainingDays.filter(d=>isDone(d.id)).length;
+  const weekDone=doneCount===trainingDays.length;
+
+  const snatH =SNATCH_SEQ[indices.snatch];
+  const squatH=SQUAT_SEQ[indices.squat];
+  const tguH  =TGU_SEQ[indices.tgu];
+  const cpH   =CP_SEQ[indices.cp];
+
+  const totalSkips = Object.values(skips).flat().length;
+
+  const nb=d=>({background:"none",border:`1px solid ${d?"#1e1e1e":C.border}`,color:d?"#252525":C.muted,borderRadius:6,padding:"6px 14px",fontSize:11,cursor:d?"default":"pointer"});
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,padding:"20px 16px 60px",maxWidth:480,margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:9,color:C.muted,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:4}}>Wildman Nerd Math</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <h1 style={{fontSize:20,fontWeight:700,margin:0,letterSpacing:"-0.02em"}}>Heavy / Light Tracker</h1>
+            <div style={{fontSize:10,color:C.muted,marginTop:3}}>12 · 16 · 20kg &nbsp;·&nbsp; Snatch · TGU · Squat · C&P</div>
+          </div>
+          {totalSkips>0&&(
+            <div style={{fontSize:9,color:C.skip,border:`1px solid ${C.skip}44`,borderRadius:5,padding:"3px 7px",marginTop:2}}>
+              {totalSkips} step{totalSkips>1?"s":""} skipped
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:20}}>
+        {[["week","This Week"],["charts","WC Curves"],["info","Skill Info"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)} style={{flex:1,padding:"8px 0",fontSize:10,fontWeight:600,borderRadius:6,border:"none",cursor:"pointer",background:tab===v?C.heavy:C.surface,color:tab===v?"#111":C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── WEEK TAB ── */}
+      {tab==="week"&&(
+        <>
+          <WaveBar week={currentWeek} total={TOTAL}/>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <button onClick={()=>goWeek(currentWeek-1)} disabled={currentWeek===1} style={nb(currentWeek===1)}>← Prev</button>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:700,color:C.heavy}}>Week {currentWeek}</div>
+              <div style={{fontSize:10,color:C.muted}}>of {TOTAL} weeks</div>
+            </div>
+            <button onClick={()=>goWeek(currentWeek+1)} disabled={currentWeek===TOTAL} style={nb(currentWeek===TOTAL)}>Next →</button>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{height:2,background:"#222",borderRadius:1,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(doneCount/trainingDays.length)*100}%`,background:weekDone?C.done:C.heavy,transition:"width 0.4s"}}/>
+            </div>
+            <div style={{fontSize:10,color:C.muted,marginTop:3,textAlign:"right"}}>
+              {doneCount}/{trainingDays.length} sessions
+              {weekDone&&<span style={{color:C.done,marginLeft:8}}>✓ Week complete</span>}
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {days.map(day=><DayCard key={day.id} day={day} done={isDone(day.id)} onToggle={toggle} skips={skips} onSkip={handleSkip}/>)}
+          </div>
+          <div style={{marginTop:16,padding:"10px 14px",background:"#161616",borderRadius:8,border:"1px solid #1e1e1e"}}>
+            <div style={{fontSize:9,color:"#374151",lineHeight:1.7}}>
+              <span style={{color:C.skip}}>skip →</span> appears on heavy slots. Tap to skip a step and use the next one instead. Tap <span style={{color:C.done}}>✓ unskip</span> to restore it.
+            </div>
+          </div>
+          <div style={{marginTop:16,display:"flex",gap:16,justifyContent:"center"}}>
+            {[[C.heavy,"Heavy"],[C.light,"Light"],[C.done,"Done"],[C.skip,"Skipped"]].map(([c,l])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:8,height:8,borderRadius:2,background:c}}/>
+                <span style={{fontSize:10,color:C.muted}}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── CHARTS TAB ── */}
+      {tab==="charts"&&<WCCharts currentWeek={currentWeek} total={TOTAL} skips={skips}/>}
+
+      {/* ── INFO TAB ── */}
+      {tab==="info"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <InfoCard title={`Snatch — Week ${currentWeek}`} color={C.heavy} rows={[
+            ["Heavy (Day 1)",`${snatH.bell}kg · ${snatH.sets} sets × ${snatH.rL}L+${snatH.rR}R`],
+            ["Heavy WC",`${snatH.wc}`],
+            ["Sequence","Aggressive (full bell blocks)"],
+            ["Format","EMOM"],
+          ]} note="Exhausts each bell fully before moving up. 12kg: volume 10→20 sets, then density compression. Then 16kg, then 20kg."/>
+
+          <InfoCard title={`TGU — Week ${currentWeek}`} color={C.light} rows={[
+            ["Heavy (Day 4)",`${tguH.bell}kg · ${tguH.label}`],
+            ["Light (Day 1)",`${tguH.bell>12?tguH.bell-4:12}kg · ~${Math.max(1,Math.round(tguH.sets*0.55))}×${Math.max(3,Math.round(tguH.mins*0.55))}min`],
+            ["Progression","mins first → then sets"],
+            ["Max","3 sets × 10 min per bell"],
+          ]} note="1 set × 3–10min → 2 sets → 3 sets. Light ≈ 55% of heavy volume, one bell down where possible."/>
+
+          <InfoCard title={`Squat — Week ${currentWeek}`} color={C.light} rows={[
+            ["Heavy (Day 5)",`${squatH.bell}kg · ${squatH.sets} sets × ${squatH.rL}L+${squatH.rR}R`],
+            ["Heavy WC",`${squatH.wc}`],
+            ["Sequence","Aggressive (same as Snatch)"],
+            ["Format","60s rest between sets"],
+          ]} note="Identical progression structure to Snatch. Each bell exhausted fully before moving up."/>
+
+          <InfoCard title={`C&P — Week ${currentWeek}`} color={C.heavy} rows={[
+            ["Heavy (Day 2)",`${cpH.bell}kg · ${cpH.sets}×${cpH.ladder} L+R`],
+            ["Heavy WC",`${cpH.wc}`],
+            ["Light (Day 5)",`${cpH.bell}kg · ${Math.max(1,Math.ceil(cpH.sets/2))}×${cpH.ladder} L+R`],
+            ["Sequence","Moderate — WC interleaved"],
+            ["Format","Reverse ladder · L then R"],
+          ]} note="33 remaining steps from warriorworkout.fit Moderate sequence. Restarts after completing 20kg 5×321. Light = same bell & ladder, half sets."/>
+
+          <InfoCard title="Day Structure" color={C.muted} rows={[
+            ["Day 1 (Mon)","Snatch HEAVY · TGU LIGHT"],
+            ["Day 2 (Tue)","Squat LIGHT · C&P HEAVY"],
+            ["Day 3 (Wed)","Rest"],
+            ["Day 4 (Thu)","Snatch LIGHT · TGU HEAVY"],
+            ["Day 5 (Fri)","Squat HEAVY · C&P LIGHT"],
+            ["Sat–Sun","Rest"],
+          ]}/>
+
+          {totalSkips>0&&(
+            <div style={{background:"#1a1210",border:`1px solid ${C.skip}44`,borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:9,color:C.skip,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Skipped Steps</div>
+              {Object.entries(skips).map(([key,idxs])=>idxs.map(idx=>{
+                const seq=key==="snatch"?SNATCH_SEQ:key==="squat"?SQUAT_SEQ:key==="cp"?CP_SEQ:TGU_SEQ;
+                const s=seq[idx];
+                const label=key==="cp"?`${s.bell}kg ${s.sets}×${s.ladder}`:key==="tgu"?`${s.bell}kg ${s.label}`:`${s.bell}kg ${s.sets}×${s.reps}`;
+                return (
+                  <div key={key+idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                    <span style={{fontSize:10,color:C.muted,textTransform:"capitalize"}}>{key}: {label}</span>
+                    <button onClick={()=>handleSkip(key,idx)} style={{fontSize:9,color:C.done,background:"none",border:`1px solid ${C.done}44`,borderRadius:4,padding:"2px 7px",cursor:"pointer"}}>restore</button>
+                  </div>
+                );
+              }))}
+            </div>
+          )}
+
+          <div style={{textAlign:"center",marginTop:8}}>
+            <button onClick={()=>{ if(confirm("Reset all progress and skips?")) setSt(INIT); }}
+              style={{fontSize:10,color:C.muted,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>
+              Reset all progress
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
