@@ -62,8 +62,31 @@ const SNATCH_SEQ = [
   {bell:20,sets:10,rL:10,rR:10,wc:4000,phase:"den"},
 ];
 
-// ─── SQUAT SEQUENCE — identical structure to Snatch ─────────────────────────
-const SQUAT_SEQ = SNATCH_SEQ;
+// ─── SQUAT SEQUENCE (volume only — no density phase) ────────────────────────
+// 10→20 sets of 5L+5R per bell, 60s rest between sets
+const SQUAT_SEQ = [
+  // 12kg
+  {bell:12,sets:10,rL:5,rR:5,wc:1200,phase:"vol"},{bell:12,sets:11,rL:5,rR:5,wc:1320,phase:"vol"},
+  {bell:12,sets:12,rL:5,rR:5,wc:1440,phase:"vol"},{bell:12,sets:13,rL:5,rR:5,wc:1560,phase:"vol"},
+  {bell:12,sets:14,rL:5,rR:5,wc:1680,phase:"vol"},{bell:12,sets:15,rL:5,rR:5,wc:1800,phase:"vol"},
+  {bell:12,sets:16,rL:5,rR:5,wc:1920,phase:"vol"},{bell:12,sets:17,rL:5,rR:5,wc:2040,phase:"vol"},
+  {bell:12,sets:18,rL:5,rR:5,wc:2160,phase:"vol"},{bell:12,sets:19,rL:5,rR:5,wc:2280,phase:"vol"},
+  {bell:12,sets:20,rL:5,rR:5,wc:2400,phase:"vol"},
+  // 16kg
+  {bell:16,sets:10,rL:5,rR:5,wc:1600,phase:"vol"},{bell:16,sets:11,rL:5,rR:5,wc:1760,phase:"vol"},
+  {bell:16,sets:12,rL:5,rR:5,wc:1920,phase:"vol"},{bell:16,sets:13,rL:5,rR:5,wc:2080,phase:"vol"},
+  {bell:16,sets:14,rL:5,rR:5,wc:2240,phase:"vol"},{bell:16,sets:15,rL:5,rR:5,wc:2400,phase:"vol"},
+  {bell:16,sets:16,rL:5,rR:5,wc:2560,phase:"vol"},{bell:16,sets:17,rL:5,rR:5,wc:2720,phase:"vol"},
+  {bell:16,sets:18,rL:5,rR:5,wc:2880,phase:"vol"},{bell:16,sets:19,rL:5,rR:5,wc:3040,phase:"vol"},
+  {bell:16,sets:20,rL:5,rR:5,wc:3200,phase:"vol"},
+  // 20kg
+  {bell:20,sets:10,rL:5,rR:5,wc:2000,phase:"vol"},{bell:20,sets:11,rL:5,rR:5,wc:2200,phase:"vol"},
+  {bell:20,sets:12,rL:5,rR:5,wc:2400,phase:"vol"},{bell:20,sets:13,rL:5,rR:5,wc:2600,phase:"vol"},
+  {bell:20,sets:14,rL:5,rR:5,wc:2800,phase:"vol"},{bell:20,sets:15,rL:5,rR:5,wc:3000,phase:"vol"},
+  {bell:20,sets:16,rL:5,rR:5,wc:3200,phase:"vol"},{bell:20,sets:17,rL:5,rR:5,wc:3400,phase:"vol"},
+  {bell:20,sets:18,rL:5,rR:5,wc:3600,phase:"vol"},{bell:20,sets:19,rL:5,rR:5,wc:3800,phase:"vol"},
+  {bell:20,sets:20,rL:5,rR:5,wc:4000,phase:"vol"},
+];
 
 // ─── C&P SEQUENCE (Moderate) — starting from next after last completed ───────
 // Last completed: 20kg 5×321. Next = #1 in file.
@@ -104,7 +127,7 @@ const TGU_SEQ = buildTguSeq();
 // C&P:    index 0 of CP_SEQ (12kg 3×321, next after last completed)
 // TGU:    next after 1×10min at 12kg = 2×3min at 12kg
 const SNATCH_START = 15; // at 12kg density end (10×10L+10R) — 16kg starts week 2
-const SQUAT_START  = 15; // same position as snatch
+const SQUAT_START  = 12; // next after completed 16kg 6×5/side
 const CP_START     = 15; // next after completed 20kg 5×321 (index 14)
 const TGU_START    = TGU_SEQ.findIndex(s=>s.bell===16&&s.sets===1&&s.mins===7); // next after 16kg 1×6min
 
