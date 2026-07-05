@@ -152,8 +152,9 @@ function getWeekPrescription(weekOffset, offsets) {
   const cpH    = CP_SEQ[siCp];
   const tguH   = TGU_SEQ[siTgu];
 
+  // TGU light = one bell down, same sets and minutes (Option E — consistent 75% WC ratio)
   const tguLBell = tguH.bell>12 ? tguH.bell-4 : 12;
-  const tguL = {bell:tguLBell, sets:Math.max(1,Math.round(tguH.sets*0.55)), mins:Math.max(3,Math.round(tguH.mins*0.55)), label:`${Math.max(1,Math.round(tguH.sets*0.55))}x${Math.max(3,Math.round(tguH.mins*0.55))}min`};
+  const tguL = {bell:tguLBell, sets:tguH.sets, mins:tguH.mins, label:`${tguH.sets}x${tguH.mins}min`};
   const cpL  = {bell:cpH.bell, sets:Math.max(1,Math.ceil(cpH.sets/2)), ladder:cpH.ladder, wc:null};
 
   return {
@@ -556,7 +557,7 @@ function App(){
           ]} note="Aggressive sequence. Volume: 10→20 sets of 5/side. Density: sets drop 16→10, reps/side build 6→10."/>
           <InfoCard title={`TGU — Week ${currentWeek}`} color={C.light} rows={[
             ["Heavy (Day 4)",`${tguH.bell}kg · ${tguH.label}`],
-            ["Light (Day 1)",`${tguH.bell>12?tguH.bell-4:12}kg · ~${Math.max(1,Math.round(tguH.sets*0.55))}x${Math.max(3,Math.round(tguH.mins*0.55))}min`],
+            ["Light (Day 1)",`${tguH.bell>12?tguH.bell-4:12}kg · ${tguH.sets}x${tguH.mins}min (same duration)`],
             ["Progression","mins first, then sets"],["Max","3 sets x 10 min per bell"],
           ]} note="Light = ~55% of heavy volume, one bell down where possible."/>
           <InfoCard title={`Squat — Week ${currentWeek}`} color={C.light} rows={[
