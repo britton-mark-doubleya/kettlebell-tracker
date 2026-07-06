@@ -55,12 +55,19 @@ const SNATCH_LIGHT_SEQ = [
   {bell:20,sets:10,rL:10,rR:10,wc:4000,phase:"den"},
 ];
 
-// Derive heavy snatch from light: one bell up, same reps/side, ~75% WC
+// Derive heavy snatch from light: one bell up, ~75% WC
+// Heavy always uses volume reps (5/side) unless both bells are at 20kg ceiling
 function snatHeavyFromLight(light) {
-  const hBell = light.bell===12 ? 16 : 20; // ceiling at 20
-  const repsPerSet = light.rL + light.rR;
+  const hBell = light.bell===12 ? 16 : 20;
+  // At ceiling (both 20kg): match light reps/side and phase
+  // Otherwise: heavy is always starting volume on new bell → 5/side
+  const atCeiling = (light.bell===20 && hBell===20);
+  const rL = atCeiling ? light.rL : 5;
+  const rR = atCeiling ? light.rR : 5;
+  const phase = atCeiling ? light.phase : "vol";
+  const repsPerSet = rL + rR;
   const sets = Math.max(1, Math.round(light.wc * 0.75 / (hBell * repsPerSet)));
-  return {bell:hBell, sets, rL:light.rL, rR:light.rR, wc:hBell*sets*repsPerSet, phase:light.phase};
+  return {bell:hBell, sets, rL, rR, wc:hBell*sets*repsPerSet, phase};
 }
 
 const SQUAT_SEQ = [
