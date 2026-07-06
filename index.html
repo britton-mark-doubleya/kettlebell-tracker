@@ -23,17 +23,13 @@ const { useState, useEffect } = React;
 
 // ─── SEQUENCES ───────────────────────────────────────────────────────────────
 
-const SNATCH_SEQ = [
-  // 12kg volume (5L+5R per set)
-  {bell:12,sets:10,rL:5,rR:5,wc:1200,phase:"vol"},{bell:12,sets:11,rL:5,rR:5,wc:1320,phase:"vol"},
-  {bell:12,sets:12,rL:5,rR:5,wc:1440,phase:"vol"},{bell:12,sets:13,rL:5,rR:5,wc:1560,phase:"vol"},
-  {bell:12,sets:14,rL:5,rR:5,wc:1680,phase:"vol"},{bell:12,sets:15,rL:5,rR:5,wc:1800,phase:"vol"},
-  {bell:12,sets:16,rL:5,rR:5,wc:1920,phase:"vol"},{bell:12,sets:17,rL:5,rR:5,wc:2040,phase:"vol"},
-  {bell:12,sets:18,rL:5,rR:5,wc:2160,phase:"vol"},{bell:12,sets:19,rL:5,rR:5,wc:2280,phase:"vol"},
-  {bell:12,sets:20,rL:5,rR:5,wc:2400,phase:"vol"},
-  // 12kg density (reps/side 6→10, sets 16→10)
-  {bell:12,sets:16,rL:6,rR:6,wc:2304,phase:"den"},{bell:12,sets:14,rL:7,rR:7,wc:2352,phase:"den"},
-  {bell:12,sets:12,rL:8,rR:8,wc:2304,phase:"den"},{bell:12,sets:11,rL:9,rR:9,wc:2376,phase:"den"},
+// SNATCH: Interpretation A — light bell drives progression, heavy follows at 75% WC
+// Light day (Day 4) works through this sequence week by week
+// Heavy day (Day 1) is always derived: same reps/side, sets = round(light_wc * 0.75 / (heavyBell * repsPerSet))
+const SNATCH_LIGHT_SEQ = [
+  // 12kg density tail (user starts here)
+  {bell:12,sets:16,rL:6, rR:6, wc:2304,phase:"den"},{bell:12,sets:14,rL:7, rR:7, wc:2352,phase:"den"},
+  {bell:12,sets:12,rL:8, rR:8, wc:2304,phase:"den"},{bell:12,sets:11,rL:9, rR:9, wc:2376,phase:"den"},
   {bell:12,sets:10,rL:10,rR:10,wc:2400,phase:"den"},
   // 16kg volume
   {bell:16,sets:10,rL:5,rR:5,wc:1600,phase:"vol"},{bell:16,sets:11,rL:5,rR:5,wc:1760,phase:"vol"},
@@ -43,8 +39,8 @@ const SNATCH_SEQ = [
   {bell:16,sets:18,rL:5,rR:5,wc:2880,phase:"vol"},{bell:16,sets:19,rL:5,rR:5,wc:3040,phase:"vol"},
   {bell:16,sets:20,rL:5,rR:5,wc:3200,phase:"vol"},
   // 16kg density
-  {bell:16,sets:16,rL:6,rR:6,wc:3072,phase:"den"},{bell:16,sets:14,rL:7,rR:7,wc:3136,phase:"den"},
-  {bell:16,sets:12,rL:8,rR:8,wc:3072,phase:"den"},{bell:16,sets:11,rL:9,rR:9,wc:3168,phase:"den"},
+  {bell:16,sets:16,rL:6, rR:6, wc:3072,phase:"den"},{bell:16,sets:14,rL:7, rR:7, wc:3136,phase:"den"},
+  {bell:16,sets:12,rL:8, rR:8, wc:3072,phase:"den"},{bell:16,sets:11,rL:9, rR:9, wc:3168,phase:"den"},
   {bell:16,sets:10,rL:10,rR:10,wc:3200,phase:"den"},
   // 20kg volume
   {bell:20,sets:10,rL:5,rR:5,wc:2000,phase:"vol"},{bell:20,sets:11,rL:5,rR:5,wc:2200,phase:"vol"},
@@ -54,10 +50,18 @@ const SNATCH_SEQ = [
   {bell:20,sets:18,rL:5,rR:5,wc:3600,phase:"vol"},{bell:20,sets:19,rL:5,rR:5,wc:3800,phase:"vol"},
   {bell:20,sets:20,rL:5,rR:5,wc:4000,phase:"vol"},
   // 20kg density
-  {bell:20,sets:16,rL:6,rR:6,wc:3840,phase:"den"},{bell:20,sets:14,rL:7,rR:7,wc:3920,phase:"den"},
-  {bell:20,sets:12,rL:8,rR:8,wc:3840,phase:"den"},{bell:20,sets:11,rL:9,rR:9,wc:3960,phase:"den"},
+  {bell:20,sets:16,rL:6, rR:6, wc:3840,phase:"den"},{bell:20,sets:14,rL:7, rR:7, wc:3920,phase:"den"},
+  {bell:20,sets:12,rL:8, rR:8, wc:3840,phase:"den"},{bell:20,sets:11,rL:9, rR:9, wc:3960,phase:"den"},
   {bell:20,sets:10,rL:10,rR:10,wc:4000,phase:"den"},
 ];
+
+// Derive heavy snatch from light: one bell up, same reps/side, ~75% WC
+function snatHeavyFromLight(light) {
+  const hBell = light.bell===12 ? 16 : 20; // ceiling at 20
+  const repsPerSet = light.rL + light.rR;
+  const sets = Math.max(1, Math.round(light.wc * 0.75 / (hBell * repsPerSet)));
+  return {bell:hBell, sets, rL:light.rL, rR:light.rR, wc:hBell*sets*repsPerSet, phase:light.phase};
+}
 
 const SQUAT_SEQ = [
   // 12kg volume only
@@ -114,7 +118,7 @@ function buildTguSeq() {
 const TGU_SEQ = buildTguSeq();
 
 // Starting indices
-const SNATCH_START = 15; // 12kg density end — 16kg from week 2
+const SNATCH_START = 0;  // start of SNATCH_LIGHT_SEQ (12kg density tail)
 const SQUAT_START  = 12; // next after 16kg 6x5/side
 const CP_START     = 15; // next after 20kg 5x321
 const TGU_START    = TGU_SEQ.findIndex(s=>s.bell===16&&s.sets===1&&s.mins===7);
@@ -126,29 +130,30 @@ function effectiveIdx(baseStart, weekOffset, userOffset, seq) {
   return Math.min(Math.max(idx,0), seq.length-1);
 }
 
-const SEQ_MAP   = {snatch:SNATCH_SEQ, squat:SQUAT_SEQ, cp:CP_SEQ, tgu:TGU_SEQ};
+const SEQ_MAP   = {snatch:SNATCH_LIGHT_SEQ, squat:SQUAT_SEQ, cp:CP_SEQ, tgu:TGU_SEQ};
 const START_MAP = {snatch:SNATCH_START, squat:SQUAT_START, cp:CP_START, tgu:TGU_START};
 
 function getWeekPrescription(weekOffset, offsets) {
-  const siSnatH  = effectiveIdx(SNATCH_START, weekOffset, offsets.snatch||0, SNATCH_SEQ);
-  const siSquatH = effectiveIdx(SQUAT_START,  weekOffset, offsets.squat||0,  SQUAT_SEQ);
-  const siCp     = effectiveIdx(CP_START,     weekOffset, offsets.cp||0,     CP_SEQ);
-  const siTgu    = effectiveIdx(TGU_START,    weekOffset, offsets.tgu||0,    TGU_SEQ);
+  // Snatch: light drives (Interpretation A), heavy derived at 75%
+  const siSnatL  = effectiveIdx(SNATCH_START, weekOffset, offsets.snatch||0, SNATCH_LIGHT_SEQ);
+  const snatL    = SNATCH_LIGHT_SEQ[siSnatL];
+  const snatH    = snatHeavyFromLight(snatL);
+  const siSnatH  = siSnatL; // heavy index same as light — sets are derived not looked up
 
-  const snatH  = SNATCH_SEQ[siSnatH];
-  const squatH = SQUAT_SEQ[siSquatH];
-
-  // Light = same bell, same reps/side, ~60% of heavy sets (Option D)
+  // Squat: heavy drives, light = 60% sets same bell (unchanged)
+  const siSquatH = effectiveIdx(SQUAT_START, weekOffset, offsets.squat||0, SQUAT_SEQ);
+  const squatH   = SQUAT_SEQ[siSquatH];
   function lightFromHeavy(heavy) {
     const repsPerSet = heavy.rL + heavy.rR;
     const sets = Math.max(1, Math.round(heavy.sets * 0.6));
     return { bell:heavy.bell, sets, rL:heavy.rL, rR:heavy.rR,
              wc:heavy.bell*sets*repsPerSet, phase:heavy.phase };
   }
-  const snatL  = lightFromHeavy(snatH);
-  const squatL = lightFromHeavy(squatH);
-  const siSnatL  = siSnatH; // same sequence position, sets derived
+  const squatL   = lightFromHeavy(squatH);
   const siSquatL = siSquatH;
+
+  const siCp     = effectiveIdx(CP_START,  weekOffset, offsets.cp||0,  CP_SEQ);
+  const siTgu    = effectiveIdx(TGU_START, weekOffset, offsets.tgu||0, TGU_SEQ);
   const cpH    = CP_SEQ[siCp];
   const tguH   = TGU_SEQ[siTgu];
 
@@ -348,13 +353,14 @@ function InfoCard({title,color,rows,note}){
 // ─── CHART ────────────────────────────────────────────────────────────────────
 function buildChartData(total,offsets){
   return Array.from({length:total},(_,i)=>{
-    const sH=SNATCH_SEQ[effectiveIdx(SNATCH_START,i,offsets.snatch||0,SNATCH_SEQ)];
+    const sL=SNATCH_LIGHT_SEQ[effectiveIdx(SNATCH_START,i,offsets.snatch||0,SNATCH_LIGHT_SEQ)];
+    const sH=snatHeavyFromLight(sL);
     const sqH=SQUAT_SEQ[effectiveIdx(SQUAT_START,i,offsets.squat||0,SQUAT_SEQ)];
     const cpH=CP_SEQ[effectiveIdx(CP_START,i,offsets.cp||0,CP_SEQ)];
     const tH=TGU_SEQ[effectiveIdx(TGU_START,i,offsets.tgu||0,TGU_SEQ)];
     return {
-      week:i+1,snatch:sH.wc,squat:sqH.wc,cp:cpH.wc,tgu:tH.sets*tH.mins*tH.bell,
-      snatLabel:`${sH.bell}kg ${sH.sets}x${sH.rL}L+${sH.rR}R (${sH.phase})`,
+      week:i+1,snatch:sL.wc,snatHeavy:sH.wc,squat:sqH.wc,cp:cpH.wc,tgu:tH.sets*tH.mins*tH.bell,
+      snatLabel:`L:${sL.bell}kg ${sL.sets}x${sL.rL}L+${sL.rR}R / H:${sH.bell}kg ${sH.sets}x${sH.rL}L+${sH.rR}R`,
       squatLabel:`${sqH.bell}kg ${sqH.sets}x${sqH.rL}L+${sqH.rR}R`,
       cpLabel:`${cpH.bell}kg ${cpH.sets}x${cpH.ladder}`,
       tguLabel:`${tH.bell}kg ${tH.label}`,
@@ -466,7 +472,7 @@ function App(){
   useEffect(()=>{save(st);},[st]);
 
   const {currentWeek,completions,offsets}=st;
-  const TOTAL=48;
+  const TOTAL=37;
   const {days,indices}=getWeekPrescription(currentWeek-1,offsets);
   const trainingDays=days.filter(d=>!d.rest);
   const wk=`w${currentWeek}`;
@@ -479,7 +485,8 @@ function App(){
   const weekDone=doneCount===trainingDays.length;
   const totalOffset=Object.values(offsets).reduce((a,v)=>a+Math.abs(v),0);
 
-  const snatH=SNATCH_SEQ[indices.snatch];
+  const snatL=SNATCH_LIGHT_SEQ[indices.snatch];
+  const snatH=snatHeavyFromLight(snatL);
   const squatH=SQUAT_SEQ[indices.squat];
   const tguH=TGU_SEQ[indices.tgu];
   const cpH=CP_SEQ[indices.cp];
@@ -552,9 +559,12 @@ function App(){
       {tab==="info"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <InfoCard title={`Snatch — Week ${currentWeek}`} color={C.heavy} rows={[
+            ["Light (Day 4)",`${snatL.bell}kg · ${snatL.sets} sets x ${snatL.rL}L+${snatL.rR}R`],
+            ["Light WC",`${snatL.wc}`],
             ["Heavy (Day 1)",`${snatH.bell}kg · ${snatH.sets} sets x ${snatH.rL}L+${snatH.rR}R`],
-            ["Phase",snatH.phase==="vol"?"Volume":"Density"],["WC",`${snatH.wc}`],["Format","EMOM"],
-          ]} note="Aggressive sequence. Volume: 10→20 sets of 5/side. Density: sets drop 16→10, reps/side build 6→10."/>
+            ["Heavy WC",`${snatH.wc} (~75% of light)`],
+            ["Phase",snatL.phase==="vol"?"Volume":"Density"],["Format","EMOM"],
+          ]} note="Interpretation A: light bell drives progression, heavy follows at ~75% WC. Same reps/side both days, sets adjusted."/>
           <InfoCard title={`TGU — Week ${currentWeek}`} color={C.light} rows={[
             ["Heavy (Day 4)",`${tguH.bell}kg · ${tguH.label}`],
             ["Light (Day 1)",`${tguH.bell>12?tguH.bell-4:12}kg · ${tguH.sets}x${tguH.mins}min (same duration)`],
