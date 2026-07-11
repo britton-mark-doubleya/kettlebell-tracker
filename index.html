@@ -124,6 +124,21 @@ function buildTguSeq() {
 }
 const TGU_SEQ = buildTguSeq();
 
+// ─── ACCESSORY WORK (warm-ups + rotational days — not WC-sequenced) ──────────
+const ACCESSORIES = {
+  1: [ {id:"a1-clubs", name:"Indian clubs", detail:"5 min · shoulder prep", plane:"roll/yaw"} ],
+  2: [ {id:"a2-halo",  name:"KB halo", detail:"2-3 sets · before C&P", plane:"all planes"},
+       {id:"a2-cossack", name:"Cossack squat", detail:"warm-up · frontal", plane:"roll"} ],
+  3: [ {id:"a3-mace360", name:"Mace 360° swings", detail:"4kg technique / 10kg work", plane:"yaw"},
+       {id:"a3-1002", name:"10-to-2 pendulum", detail:"frontal plane", plane:"roll"},
+       {id:"a3-spear", name:"Spear", detail:"transverse thrust", plane:"yaw"} ],
+  4: [ {id:"a4-clubs", name:"Indian clubs", detail:"5 min · shoulder prep", plane:"roll/yaw"},
+       {id:"a4-windmill", name:"Windmill", detail:"after TGU · same bell", plane:"roll"} ],
+  5: [ {id:"a5-halo", name:"KB halo", detail:"2-3 sets · before squat", plane:"all planes"},
+       {id:"a5-cossack", name:"Cossack squat", detail:"warm-up · frontal", plane:"roll"} ],
+  6: [ {id:"a6-club", name:"Heavy club / mace", detail:"shield cast · mill · 15-20 min", plane:"roll/yaw"} ],
+};
+
 // Starting indices
 const SNATCH_START = 0;  // start of SNATCH_LIGHT_SEQ (12kg density tail)
 const SQUAT_START  = 12; // next after 16kg 6x5/side
@@ -179,7 +194,7 @@ function getWeekPrescription(weekOffset, offsets) {
         {skill:"Squat",weight:"LIGHT",data:squatL,seqKey:"squat",seqIdx:siSquatL,note:"60s rest · per side"},
         {skill:"C&P",  weight:"HEAVY",data:cpH,   seqKey:"cp",   seqIdx:siCp,   note:"Reverse ladder · L then R"},
       ]},
-      {id:3,dayName:"Wed",label:"Day 3",rest:true},
+      {id:3,dayName:"Wed",label:"Day 3",rest:false,accessoryOnly:true,slots:[]},
       {id:4,dayName:"Thu",label:"Day 4",rest:false,slots:[
         {skill:"Snatch",weight:"LIGHT",data:snatL, seqKey:"snatch",seqIdx:siSnatL,note:"EMOM · per side"},
         {skill:"TGU",   weight:"HEAVY",data:tguH,  seqKey:"tgu",   seqIdx:siTgu,  note:"Time under tension"},
@@ -188,7 +203,7 @@ function getWeekPrescription(weekOffset, offsets) {
         {skill:"Squat",weight:"HEAVY",data:squatH,seqKey:"squat",seqIdx:siSquatH,note:"60s rest · per side"},
         {skill:"C&P",  weight:"LIGHT",data:cpL,   seqKey:"cp",   seqIdx:siCp,   note:"Reverse ladder · L then R"},
       ]},
-      {id:6,dayName:"Sat",label:"Day 6",rest:true},
+      {id:6,dayName:"Sat",label:"Day 6",rest:false,accessoryOnly:true,slots:[]},
       {id:7,dayName:"Sun",label:"Day 7",rest:true},
     ],
     indices:{snatch:siSnatH,squat:siSquatH,cp:siCp,tgu:siTgu}
@@ -242,7 +257,7 @@ function intensityColor(wcPerMin, skill) {
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
 const SK="kb4-v1";
-const INIT={currentWeek:1,completions:{},offsets:{snatch:0,squat:0,cp:0,tgu:0}};
+const INIT={currentWeek:1,completions:{},offsets:{snatch:0,squat:0,cp:0,tgu:0},accChecks:{}};
 function load(){try{const r=localStorage.getItem(SK);return r?{...INIT,...JSON.parse(r)}:INIT;}catch{return INIT;}}
 function save(s){try{localStorage.setItem(SK,JSON.stringify(s));}catch{}}
 
@@ -300,11 +315,51 @@ function SlotRow({skill,slot,offsets,onAdjust,weekOffset}){
   );
 }
 
-function DayCard({day,done,onToggle,offsets,onAdjust,weekOffset}){
+function AccessoryRow({acc, checked, onCheck}){
+  return (
+    <div onClick={e=>{e.stopPropagation();onCheck(acc.id);}} style={{
+      display:"flex",alignItems:"center",gap:10,
+      borderTop:`1px solid ${C.border}`,paddingTop:8,marginTop:8,cursor:"pointer"
+    }}>
+      <div style={{width:16,height:16,borderRadius:4,flexShrink:0,
+        border:`1.5px solid ${checked?"#7a5f9e":"#333"}`,
+        background:checked?"#7a5f9e":"transparent",
+        display:"flex",alignItems:"center",justifyContent:"center"}}>
+        {checked&&<span style={{color:"#fff",fontSize:10,lineHeight:1}}>✓</span>}
+      </div>
+      <div style={{flex:1}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+          <span style={{fontSize:11,fontWeight:600,color:checked?"#666":C.text,
+            textDecoration:checked?"line-through":"none"}}>{acc.name}</span>
+          <span style={{fontSize:9,color:"#7a5f9e",fontFamily:"monospace"}}>{acc.plane}</span>
+        </div>
+        <div style={{fontSize:9,color:C.muted,marginTop:1}}>{acc.detail}</div>
+      </div>
+    </div>
+  );
+}
+
+function DayCard({day,done,onToggle,offsets,onAdjust,weekOffset,accChecks,onAccCheck}){
   if(day.rest) return (
     <div style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 16px",background:"#161616",display:"flex",alignItems:"center",gap:12}}>
       <span style={{fontSize:11,color:"#333",fontFamily:"monospace",minWidth:28}}>{day.dayName}</span>
       <span style={{fontSize:10,color:"#252525",textTransform:"uppercase",letterSpacing:"0.1em"}}>Rest</span>
+    </div>
+  );
+  const dayAccessories = ACCESSORIES[day.id] || [];
+  if(day.accessoryOnly) return (
+    <div style={{border:`1px solid #3a2f4a`,borderRadius:8,padding:"14px 16px",background:"#1a1622",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"#7a5f9e",borderRadius:"8px 0 0 8px"}}/>
+      <div style={{paddingLeft:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:2}}>
+          <span style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{day.dayName}</span>
+          <span style={{fontSize:12,fontWeight:700,color:C.text}}>{day.label}</span>
+          <span style={{fontSize:9,color:"#7a5f9e",letterSpacing:"0.1em",textTransform:"uppercase"}}>Rotational</span>
+        </div>
+        {dayAccessories.map(acc=>(
+          <AccessoryRow key={acc.id} acc={acc} checked={accChecks[acc.id]||false} onCheck={onAccCheck}/>
+        ))}
+      </div>
     </div>
   );
   return (
@@ -320,6 +375,9 @@ function DayCard({day,done,onToggle,offsets,onAdjust,weekOffset}){
             {done&&<span style={{color:"#fff",fontSize:11}}>✓</span>}
           </div>
         </div>
+        {dayAccessories.map(acc=>(
+          <AccessoryRow key={acc.id} acc={acc} checked={accChecks[acc.id]||false} onCheck={onAccCheck}/>
+        ))}
         {day.slots.map((slot,i)=>(
           <SlotRow key={i} skill={slot.skill} slot={slot} offsets={offsets} onAdjust={onAdjust} weekOffset={weekOffset}/>
         ))}
@@ -478,15 +536,20 @@ function App(){
   useEffect(()=>{setSt(load());},[]);
   useEffect(()=>{save(st);},[st]);
 
-  const {currentWeek,completions,offsets}=st;
+  const {currentWeek,completions,offsets,accChecks}=st;
   const TOTAL=37;
   const {days,indices}=getWeekPrescription(currentWeek-1,offsets);
-  const trainingDays=days.filter(d=>!d.rest);
+  const trainingDays=days.filter(d=>!d.rest&&!d.accessoryOnly);
   const wk=`w${currentWeek}`;
   const isDone=id=>completions[`${wk}-${id}`]||false;
   const toggle=id=>setSt(p=>({...p,completions:{...p.completions,[`${wk}-${id}`]:!p.completions[`${wk}-${id}`]}}));
   const goWeek=n=>setSt(p=>({...p,currentWeek:Math.max(1,Math.min(TOTAL,n))}));
   const handleAdjust=(seqKey,delta)=>setSt(p=>({...p,offsets:{...p.offsets,[seqKey]:(p.offsets[seqKey]||0)+delta}}));
+  const weekAccChecks={};
+  Object.keys(accChecks||{}).forEach(k=>{
+    if(k.startsWith(`w${currentWeek}-`)) weekAccChecks[k.slice(`w${currentWeek}-`.length)]=accChecks[k];
+  });
+  const handleAccCheck=(accId)=>setSt(p=>({...p,accChecks:{...p.accChecks,[`w${currentWeek}-${accId}`]:!p.accChecks[`w${currentWeek}-${accId}`]}}));
 
   const doneCount=trainingDays.filter(d=>isDone(d.id)).length;
   const weekDone=doneCount===trainingDays.length;
@@ -543,7 +606,7 @@ function App(){
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {days.map(day=><DayCard key={day.id} day={day} done={isDone(day.id)} onToggle={toggle} offsets={offsets} onAdjust={handleAdjust} weekOffset={currentWeek-1}/>)}
+            {days.map(day=><DayCard key={day.id} day={day} done={isDone(day.id)} onToggle={toggle} offsets={offsets} onAdjust={handleAdjust} weekOffset={currentWeek-1} accChecks={weekAccChecks} onAccCheck={handleAccCheck}/>)}
           </div>
           <div style={{marginTop:16,padding:"10px 14px",background:"#161616",borderRadius:8,border:"1px solid #1e1e1e"}}>
             <div style={{fontSize:9,color:"#4b5563",lineHeight:1.7}}>
@@ -588,13 +651,19 @@ function App(){
             ["Sequence","Moderate — WC ordered"],
           ]} note="Light = same bell and ladder, half the sets."/>
           <InfoCard title="Day Structure" color={C.muted} rows={[
-            ["Day 1 (Mon)","Snatch HEAVY · TGU LIGHT"],
-            ["Day 2 (Tue)","Squat LIGHT · C&P HEAVY"],
-            ["Day 3 (Wed)","Rest"],
-            ["Day 4 (Thu)","Snatch LIGHT · TGU HEAVY"],
-            ["Day 5 (Fri)","Squat HEAVY · C&P LIGHT"],
-            ["Sat-Sun","Rest"],
+            ["Day 1 (Mon)","Clubs → Snatch HEAVY · TGU LIGHT"],
+            ["Day 2 (Tue)","Halo → Squat LIGHT · C&P HEAVY"],
+            ["Day 3 (Wed)","Rotational: mace 360s, 10-to-2, spear"],
+            ["Day 4 (Thu)","Clubs → Snatch LIGHT · TGU HEAVY + windmill"],
+            ["Day 5 (Fri)","Halo → Squat HEAVY · C&P LIGHT"],
+            ["Day 6 (Sat)","Heavy club: shield cast, mill"],
+            ["Day 7 (Sun)","Full rest"],
           ]}/>
+          <InfoCard title="Plane coverage" color="#7a5f9e" rows={[
+            ["Pitch (sagittal)","5 sessions — all KB days"],
+            ["Roll (frontal)","4 sessions — windmill, Cossack, 10-to-2, club"],
+            ["Yaw (transverse)","3 sessions — mace, halo, club"],
+          ]} note="Purple items are accessory/rotational work — technique and mobility, not WC-sequenced. Check them off as done; they don't affect main session completion."/>
           {totalOffset>0&&(
             <div style={{background:"#1a1a1a",border:"1px solid #252525",borderRadius:8,padding:"12px 14px"}}>
               <div style={{fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Sequence Adjustments</div>
