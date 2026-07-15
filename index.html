@@ -115,11 +115,14 @@ const CP_SEQ = [
 ];
 
 function buildTguSeq() {
+  // 30-second increments (3.0 → 10.0 min) for adaptable progression
   const seq = [];
   for (const bell of [12,16,20])
     for (let sets=1;sets<=3;sets++)
-      for (let mins=3;mins<=10;mins++)
+      for (let m=30;m<=100;m+=5) { // tenths of minutes: 3.0 to 10.0 in 0.5 steps
+        const mins = m/10;
         seq.push({bell,sets,mins,label:`${sets}x${mins}min`});
+      }
   return seq;
 }
 const TGU_SEQ = buildTguSeq();
@@ -143,7 +146,7 @@ const ACCESSORIES = {
 const SNATCH_START = 0;  // start of SNATCH_LIGHT_SEQ (12kg density tail)
 const SQUAT_START  = 12; // next after 16kg 6x5/side
 const CP_START     = 15; // next after 20kg 5x321
-const TGU_START    = TGU_SEQ.findIndex(s=>s.bell===16&&s.sets===1&&s.mins===7);
+const TGU_START    = TGU_SEQ.findIndex(s=>s.bell===16&&s.sets===1&&s.mins===7.5); // 30s increments from completed 1x7min
 
 function clamp(arr,i){ return arr[Math.min(Math.max(i,0),arr.length-1)]; }
 
@@ -179,9 +182,12 @@ function getWeekPrescription(weekOffset, offsets) {
   const cpH    = CP_SEQ[siCp];
   const tguH   = TGU_SEQ[siTgu];
 
-  // TGU light = one bell down, same sets and minutes (Option E — consistent 75% WC ratio)
+  // TGU light = one bell down, +2 min, capped so light WC <= 85% of heavy WC
   const tguLBell = tguH.bell>12 ? tguH.bell-4 : 12;
-  const tguL = {bell:tguLBell, sets:tguH.sets, mins:tguH.mins, label:`${tguH.sets}x${tguH.mins}min`};
+  const tguHWc = tguH.bell*tguH.sets*tguH.mins;
+  let tguLMins = Math.min(10, tguH.mins+2);
+  while (tguLBell*tguH.sets*tguLMins > tguHWc*0.85 && tguLMins > 3) tguLMins -= 0.5;
+  const tguL = {bell:tguLBell, sets:tguH.sets, mins:tguLMins, label:`${tguH.sets}x${tguLMins}min`};
   const cpL  = {bell:cpH.bell, sets:Math.max(1,Math.ceil(cpH.sets/2)), ladder:cpH.ladder, wc:null};
 
   return {
@@ -637,9 +643,9 @@ function App(){
           ]} note="Interpretation A: light bell drives progression, heavy follows at ~75% WC. Same reps/side both days, sets adjusted."/>
           <InfoCard title={`TGU — Week ${currentWeek}`} color={C.light} rows={[
             ["Heavy (Day 4)",`${tguH.bell}kg · ${tguH.label}`],
-            ["Light (Day 1)",`${tguH.bell>12?tguH.bell-4:12}kg · ${tguH.sets}x${tguH.mins}min (same duration)`],
+            ["Light (Day 1)",(()=>{const lb=tguH.bell>12?tguH.bell-4:12;const hw=tguH.bell*tguH.sets*tguH.mins;let lm=Math.min(10,tguH.mins+2);while(lb*tguH.sets*lm>hw*0.85&&lm>3)lm-=0.5;return `${lb}kg · ${tguH.sets}x${lm}min`;})()],
             ["Progression","mins first, then sets"],["Max","3 sets x 10 min per bell"],
-          ]} note="Light = ~55% of heavy volume, one bell down where possible."/>
+          ]} note="30s increments. Light = one bell down, +2min, capped at 85% of heavy WC."/>
           <InfoCard title={`Squat — Week ${currentWeek}`} color={C.light} rows={[
             ["Heavy (Day 5)",`${squatH.bell}kg · ${squatH.sets} sets x ${squatH.rL}L+${squatH.rR}R`],
             ["WC",`${squatH.wc}`],["Format","60s rest between sets"],["Sequence","Volume only"],
